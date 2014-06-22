@@ -2,19 +2,19 @@
 <html>
 <head>
     <title>Zxing Web-scanner</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <style type="text/css">
         .rotate {
             margin-bottom: 60px;
-            behavior:url(-ms-transform.htc);
+            behavior: url(-ms-transform.htc);
             /* Firefox */
-            -moz-transform:rotate(90deg);
+            -moz-transform: rotate(90deg);
             /* Safari and Chrome */
-            -webkit-transform:rotate(90deg);
+            -webkit-transform: rotate(90deg);
             /* Opera */
-            -o-transform:rotate(90deg);
+            -o-transform: rotate(90deg);
             /* IE9 */
-            -ms-transform:rotate(90deg);
+            -ms-transform: rotate(90deg);
             /* IE6,IE7 */
             filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
             /* IE8 */
@@ -23,68 +23,208 @@
     </style>
     <script src='https://code.jquery.com/jquery-2.1.1.min.js'></script>
     <script type="text/javascript">
-        $(function(){
-            loadData();
-            rotateImage();
-        });
-        var timer = false;
-        function loadData(){
-            $.ajax({
-                url: 'http://192.168.1.100:8080',
-                type: 'GET',
-                cache: false,
-                dataType: 'json',
-                success: function(data, textStatus, jqXHR){
-                    var img = data.prevdata;
-                    var barcode = data.barcode;
-                    $("#preview").attr("src", "data:image/jpeg;base64,"+img);
-                    if (barcode!=""){
-                        $("#barcode").text("Barcode: "+barcode);
-                    } else {
-                        $("#barcode").text("No barcode detected");
+        (function ($) {
+            $.extend({
+                zxing: function (callback) {
+                    // options
+                    var barcodetimeout = 3; // 3 second barcode timeout
+                    var defaultCallback = null;
+                    var fireOnceCallback = null;
+                    // Public members
+                    this.startScanning = function () {
+                        startScanning(true);
+                    };
+                    this.stopScanning = function () {
+                        stopScanning();
+                    };
+                    this.scanOnce = function (callback) {
+                        if (callback != null) {
+                            fireOnceCallback = function (barcode) {
+                                callback(barcode);
+                                fireOnceCallback = null;
+                            }
+                        }
+                        startScanning(false);
+                    };
+                    this.setFireOnceCallback = function (callback) {
+                        fireOnceCallback = function (barcode) {
+                            callback(barcode);
+                            fireOnceCallback = null;
+                        };
+                    };
+                    this.loadData = function () {
+                        loadData();
+                    };
+                    this.clearLastCode = function () {
+                        setBarcodeStat("No barcode detected");
+                        lastbarcode = 0;
+                    };
+
+                    // contructor code
+                    if (callback != null) {
+                        defaultCallback = callback;
                     }
-                    if (timer){
-                        setTimeout('loadData();', 200);
+                    window.addEventListener('orientationchange', rotateImage);
+
+                    // Core functions for loading data and disabling load timers
+                    var timer = false;
+                    var continuous = false;
+                    var errorCount = 0;
+                    function loadData() {
+                        $.ajax({
+                            url: 'http://192.168.1.100:8080',
+                            type: 'GET',
+                            cache: false,
+                            dataType: 'json',
+                            success: function (data, textStatus, jqXHR) {
+                                setPreviewImage(data.prevdata);
+                                processBarcode(data.barcode);
+
+                                return true;
+                            },
+                            error: function (jqXHR, textStatus, errorThrown) {
+                                if (errorCount > 0) {
+                                    stopScanning();
+                                    errorCount = 0;
+                                    alert("Zxing server error.");
+                                } else {
+                                    processBarcode("");
+                                }
+                                errorCount++;
+                            }
+                        });
                     }
-                    return true;
-                },
-                error: function(jqXHR, textStatus, errorThrown){
-                    alert("Data Error: "+textStatus);
+
+                    function setLoadDataTimeout() {
+                        setTimeout('zxing.loadData();', 120);
+                    }
+
+                    function startTimer() {
+                        timer = true;
+                        loadData();
+                    }
+
+                    function stopTimer() {
+                        timer = false;
+                        continuous = false;
+                    }
+
+                    function stopScanning() {
+                        closeUI();
+                        stopTimer();
+                    }
+
+                    function startScanning(cont) {
+                        continuous = cont;
+                        openUI();
+                        startTimer();
+                    }
+
+                    var lastbarcode;
+                    var timeoutId = 0;
+
+                    function processBarcode(barcode) {
+                        console.log(barcode);
+                        if (barcode != "" && barcode != lastbarcode) {
+                            setBarcodeStat("Barcode: " + barcode);
+                            lastbarcode = barcode;
+                            // set barcode timeout
+                            clearTimeout(timeoutId);
+                            timeoutId = setTimeout('zxing.clearLastCode();', barcodetimeout * 1000);
+                            // continuous scan? Get more data, otherwise quit
+                            if (timer && continuous) {
+                                setLoadDataTimeout();
+                            } else {
+                                stopScanning();
+                            }
+                            // trigger callback
+                            if (fireOnceCallback != null) {
+                                fireOnceCallback(barcode);
+                            } else {
+                                defaultCallback(barcode);
+                            }
+                        } else {
+                            if (timer) {
+                                setLoadDataTimeout();
+                            }
+                            //setBarcodeStat("No barcode detected");
+                        }
+                    }
+
+                    // UI functions
+                    var uiloaded = false;
+
+                    function openUI() {
+                        if (!uiloaded) {
+                            // append html
+                            $('body').append('<div id="zxing-contain" style="display: none; position: absolute; width: 170px; left:50%; top:10px; margin-left:-85px; background-color: lightskyblue; text-align: center; border: 1px solid #FFFFFF; border-radius: 4px;">' +
+                                '<button onclick="zxing.stopScanning();" style="border: 0px solid; border-radius: 50%; position: absolute; right: 0px; width: 20px; background-color: red; color: white; margin-top: -5px; margin-right: -5px; font-family: sans-serif;">X</button>' +
+                                '<span style="font-family: sans-serif;">Scan barcode</span>' +
+                                '<div style="height: 150px; width: 150px; overflow: hidden; text-align: center; margin: 10px; margin-top: 0px; margin-bottom: 0px;">' +
+                                    '<img style="vertical-align: middle; width: 100%; height: 100%;" id="zxing-preview" src=""/><br/>' +
+                                '</div>' +
+                                '<span id="zxing-barcode" style="font-family: sans-serif; font-size: 12px;">No barcode detected</span><br/>' +
+                            '</div>');
+                            uiloaded = true;
+                        }
+                        rotateImage();
+                        $("#zxing-contain").fadeIn(500);
+                    }
+
+                    function closeUI() {
+                        $("#zxing-contain").fadeOut(500);
+                    }
+
+                    function setPreviewImage(img) {
+                        $("#zxing-preview").attr("src", "data:image/jpeg;base64," + img);
+                    }
+
+                    function setBarcodeStat(barcode) {
+                        $("#zxing-barcode").text(barcode);
+                    }
+
+                    function rotateImage() {
+                        if (uiloaded)
+                            switch (window.orientation) {
+                                case -90:
+                                case 90:
+                                    $("#zxing-preview").removeClass("rotate");
+                                    break;
+                                default:
+                                    $("#zxing-preview").addClass("rotate");
+                                    break;
+                            }
+                    }
+
+                    return this;
                 }
             });
-        }
-        function startTimer(){
-            timer = true;
-            loadData();
-        }
-        function stopTimer(){
-            timer = false;
-        }
-        function rotateImage()
-        {
-            switch(window.orientation)
-            {
-                case -90:
-                case 90:
-                    $("#preview").removeClass("rotate");
-                    break;
-                default:
-                    $("#preview").addClass("rotate");
-                    break;
-            }
-        }
-        window.addEventListener('orientationchange', rotateImage);
+        })(jQuery);
 
+        var zxing;
+        $(function () {
+            zxing = $.zxing(function (barcode) {
+                alert("default-callback: "+barcode);
+            });
+            zxing.setFireOnceCallback(function (barcode) {
+                alert("Fire-once callback: "+barcode);
+            })
+        });
     </script>
 </head>
 <body>
-<div style="max-width: 310px; margin: auto;">
-    <img id="preview" src=""/>
+<div style="max-width: 400px; margin: auto;">
+    <!--<div id="zxing-contain" style="display: none; position: absolute; width: 170px; left:50%; margin-left:85px; background-color: lightskyblue; text-align: center; border: 1px solid #FFFFFF; border-radius: 4px;">
+        <button onclick="zxing.stopScanning();" style="border: 0px solid; border-radius: 50%; position: absolute; right: 0px; width: 20px; background-color: red; color: white; margin-top: -5px; margin-right: -5px; font-family: sans-serif;">X</button>
+        <span style="font-family: sans-serif;">Scan barcode</span>
+        <div style="height: 150px; width: 150px; overflow: hidden; text-align: center; margin: 10px; margin-top: 0px; margin-bottom: 0px;">
+            <img style="vertical-align: middle; width: 100%; height: 100%;" id="zxing-preview" src=""/><br/>
+        </div>
+        <span id="zxing-barcode" style="font-family: sans-serif; font-size: 12px;">No barcode detected</span><br/>
+    </div>!-->
     <div>
-    <span id="barcode">No barcode detected</span><br/>
-    <button onclick="loadData();">Get Data</button>
-    <button onclick="startTimer();">Start Timer</button>
-    <button onclick="stopTimer();">Stop Timer</button>
+        <button onclick="zxing.scanOnce(function(barcode){alert('scan-once from single scan: '+barcode);});">Single Scan</button>
+        <button onclick="zxing.startScanning();">Continuous</button>
     </div>
 </div>
 </body>
