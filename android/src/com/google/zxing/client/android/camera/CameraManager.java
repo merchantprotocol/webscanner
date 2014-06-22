@@ -131,6 +131,8 @@ public final class CameraManager {
 
   public Point getCameraDimensions(){ return configManager.getCameraResolution(); }
 
+  public AutoFocusManager getFocusManager(){ return autoFocusManager; }
+
   public synchronized boolean isOpen() {
     return camera != null;
   }

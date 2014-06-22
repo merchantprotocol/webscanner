@@ -22,6 +22,14 @@ public class HttpServerUI extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.httpserv_fragment);
         serverbtn = (Button) findViewById(R.id.serverbtn);
+        Button activitybtn = (Button) findViewById(R.id.activitybtn);
+        activitybtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(HttpServerUI.this, CaptureActivity.class);
+                startActivity(intent);
+            }
+        });
         stattxt = (TextView) findViewById(R.id.stattxt);
         serverstarted = isServiceRunning(HttpServer.class);
         setButton(serverstarted);

@@ -44,7 +44,7 @@ public class HttpServer extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
         mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (startRelay()) {
+        if (startServer()) {
             createNotification(null);
         }
 
@@ -53,7 +53,7 @@ public class HttpServer extends Service {
 
     @Override
     public void onDestroy(){
-        stopRelay();
+        stopServer();
         removeNotification();
     }
 
@@ -85,7 +85,7 @@ public class HttpServer extends Service {
         mNotificationManager.cancel(notifyId);
     }
 
-    private boolean startRelay(){
+    private boolean startServer(){
         htserver = new Server();
         try {
             htserver.start();
@@ -96,7 +96,8 @@ public class HttpServer extends Service {
         }
     }
 
-    private void stopRelay(){
+    private void stopServer(){
+
         htserver.stop();
     }
 
@@ -113,6 +114,7 @@ public class HttpServer extends Service {
         private MultiFormatReader reader;
         private byte[] curbitmap = new byte[0];
         private String curbarcode = "";
+        private String lastbarcode = "0";
 
         public Server(){
 
@@ -121,13 +123,71 @@ public class HttpServer extends Service {
                 cameraManager = new CameraManager(getApplication());
                 cameraManager.openDriver(null);
                 camera = cameraManager.getCamera();
-                camera.getParameters().set("orientation", -90);
                 camera.startPreview();
+                camera.autoFocus(focusCallback);
+                //camera.getParameters().setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
             } catch (IOException e) {
                 e.printStackTrace();
             }
             reader = new MultiFormatReader();
             System.out.println("Server on port 8080;");
+        }
+
+        @Override
+        public void stop(){
+            super.stop();
+            cameraManager.closeDriver();
+        }
+
+        private Camera.AutoFocusCallback focusCallback = new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera cam) {
+                System.out.println("Focused: " + success);
+                if (success) {
+                    camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
+                        @Override
+                        public void onPreviewFrame(byte[] data, Camera camera) {
+                            onCameraFocus(data);
+                        }
+                    });
+
+                }
+                // request refocus
+                camera.autoFocus(focusCallback);
+
+            }
+        };
+
+        private void onCameraFocus(byte[] data){
+            // try to decode
+            PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height);
+            BinaryBitmap binbitmap = new BinaryBitmap(new HybridBinarizer(source));
+            String barcode;
+            try {
+                Result result = reader.decodeWithState(binbitmap);
+                barcode = result.getText();
+                lastbarcode = barcode;
+                if(barcode.equals(curbarcode)) barcode="";
+                System.out.println("Barcode decoded!");
+            } catch (NotFoundException e) {
+                barcode = "";
+                e.printStackTrace();
+            } finally {
+                reader.reset();
+            }
+            curbarcode = barcode;
+            savePreviewFrame(source);
+        }
+
+        private void savePreviewFrame(PlanarYUVLuminanceSource source){
+            int[] pixels = source.renderThumbnail();
+            int width = source.getThumbnailWidth();
+            int height = source.getThumbnailHeight();
+            Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+
+            curbitmap = baos.toByteArray();
         }
 
         @Override
@@ -147,31 +207,13 @@ public class HttpServer extends Service {
             camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
                 @Override
                 public void onPreviewFrame(byte[] data, Camera camera) {
-                    // try to decode
-                    PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height);
-                    BinaryBitmap binbitmap = new BinaryBitmap(new HybridBinarizer(source));
-                    try {
-                        Result result = reader.decodeWithState(binbitmap);
-                        curbarcode = result.getText();
-                        System.out.println("Barcode decoded!");
-                    } catch (NotFoundException e) {
-                        e.printStackTrace();
-                    } finally {
-                        reader.reset();
-                    }
                     // save bitmap thumb in jpeg
-                    int[] pixels = source.renderThumbnail();
-                    int width = source.getThumbnailWidth();
-                    int height = source.getThumbnailHeight();
-                    Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-
-                    curbitmap = baos.toByteArray();
+                    PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height);
+                    savePreviewFrame(source);
                 }
             });
 
-            if (!curbarcode.equals("")){
+            if (!curbarcode.equals("") && !curbarcode.equals(lastbarcode)){
                 createNotification("New barcode detected");
             }
             // create json response

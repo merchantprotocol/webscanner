@@ -142,4 +142,5 @@
     <string name="start_server">Start Server</string>
     <string name="default_port">8080</string>
     <string name="server_port">Server Port</string>
+    <string name="goto_main">Go to main App</string>
 </resources>
