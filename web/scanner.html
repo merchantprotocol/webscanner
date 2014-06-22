@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zxing Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src='asset/js/jquery-2.0.3.min.js'></script>
+    <script type="text/javascript">
+        $(function(){
+            loadData()
+        });
+        var timer = false;
+        function loadData(){
+            $.ajax({
+                url: 'http://192.168.1.100:8080',
+                type: 'GET',
+                cache: false,
+                dataType: 'json',
+                success: function(data, textStatus, jqXHR){
+                    var img = data.prevdata;
+                    var barcode = data.barcode;
+                    $("#preview").attr("src", "data:image/jpeg;base64,"+img);
+                    if (barcode!=""){
+                        $("#barcode").text("Barcode: "+barcode);
+                    } else {
+                        $("#barcode").text("No barcode detected");
+                    }
+                    if (timer){
+                        setTimeout('loadData();', 200);
+                    }
+                    return true;
+                },
+                error: function(jqXHR, textStatus, errorThrown){
+                    alert("Data Error: "+textStatus);
+                }
+            });
+        }
+        function startTimer(){
+            timer = true;
+            loadData();
+        }
+        function stopTimer(){
+            timer = false;
+        }
+    </script>
+</head>
+<body>
+<div style="max-width: 310px; margin: auto;">
+    <img style="width: 300px; height: 190px;" id="preview" src=""/><br/>
+    <span id="barcode">No barcode detected</span><br/>
+    <button onclick="loadData();">Get Data</button>
+    <button onclick="startTimer();">Start Timer</button>
+    <button onclick="stopTimer();">Stop Timer</button>
+</div>
+</body>
+</html>
