@@ -88,8 +88,9 @@ public final class CameraManager {
       }
       camera = theCamera;
     }
-    theCamera.setPreviewDisplay(holder);
-
+    if (holder!=null) {
+        theCamera.setPreviewDisplay(holder);
+    }
     if (!initialized) {
       initialized = true;
       configManager.initFromCameraParameters(theCamera);
@@ -123,6 +124,12 @@ public final class CameraManager {
     }
 
   }
+
+  public Camera getCamera(){
+    return camera;
+  }
+
+  public Point getCameraDimensions(){ return configManager.getCameraResolution(); }
 
   public synchronized boolean isOpen() {
     return camera != null;

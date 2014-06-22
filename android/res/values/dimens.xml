@@ -17,4 +17,5 @@
 <resources>
   <dimen name="standard_padding">8dip</dimen>
   <dimen name="half_padding">4dip</dimen>
+    <dimen name="tendp">10dip</dimen>
 </resources>
