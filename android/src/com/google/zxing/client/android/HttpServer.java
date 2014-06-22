@@ -10,12 +10,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.ImageFormat;
-import android.graphics.Point;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Base64;
@@ -33,9 +28,6 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 import fi.iki.elonen.NanoHTTPD;
@@ -73,7 +65,7 @@ public class HttpServer extends Service {
                 new NotificationCompat.Builder(this)
                         .setSmallIcon(android.R.drawable.ic_media_play)
                         .setContentTitle("Sever Running")
-                        .setContentText("The Socket relay is running!");
+                        .setContentText("The Xzing barcode server is running!");
         PendingIntent pe = PendingIntent.getActivity(this, 0, new Intent(this, HttpServerUI.class), PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(pe);
         if (tickertxt!=null){
@@ -119,7 +111,7 @@ public class HttpServer extends Service {
         private Camera camera;
         CameraManager cameraManager;
         private MultiFormatReader reader;
-        private byte[] curbitmap;
+        private byte[] curbitmap = new byte[0];
         private String curbarcode = "";
 
         public Server(){
@@ -167,13 +159,13 @@ public class HttpServer extends Service {
                     } finally {
                         reader.reset();
                     }
-                    // save bitmap in jpeg
+                    // save bitmap thumb in jpeg
                     int[] pixels = source.renderThumbnail();
                     int width = source.getThumbnailWidth();
                     int height = source.getThumbnailHeight();
                     Bitmap bitmap = Bitmap.createBitmap(pixels, 0, width, width, height, Bitmap.Config.ARGB_8888);
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 75, baos);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
 
                     curbitmap = baos.toByteArray();
                 }

@@ -1,12 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Zxing Web</title>
+    <title>Zxing Web-scanner</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+        .rotate {
+            margin-bottom: 60px;
+            behavior:url(-ms-transform.htc);
+            /* Firefox */
+            -moz-transform:rotate(90deg);
+            /* Safari and Chrome */
+            -webkit-transform:rotate(90deg);
+            /* Opera */
+            -o-transform:rotate(90deg);
+            /* IE9 */
+            -ms-transform:rotate(90deg);
+            /* IE6,IE7 */
+            filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+            /* IE8 */
+            -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=1);";
+        }
+    </style>
     <script src='asset/js/jquery-2.0.3.min.js'></script>
     <script type="text/javascript">
         $(function(){
-            loadData()
+            loadData();
+            rotateImage();
         });
         var timer = false;
         function loadData(){
@@ -41,15 +60,32 @@
         function stopTimer(){
             timer = false;
         }
+        function rotateImage()
+        {
+            switch(window.orientation)
+            {
+                case -90:
+                case 90:
+                    $("#preview").removeClass("rotate");
+                    break;
+                default:
+                    $("#preview").addClass("rotate");
+                    break;
+            }
+        }
+        window.addEventListener('orientationchange', rotateImage);
+
     </script>
 </head>
 <body>
 <div style="max-width: 310px; margin: auto;">
-    <img style="width: 300px; height: 190px;" id="preview" src=""/><br/>
+    <img id="preview" src=""/>
+    <div>
     <span id="barcode">No barcode detected</span><br/>
     <button onclick="loadData();">Get Data</button>
     <button onclick="startTimer();">Start Timer</button>
     <button onclick="stopTimer();">Stop Timer</button>
+    </div>
 </div>
 </body>
 </html>

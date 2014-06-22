@@ -15,7 +15,8 @@
  limitations under the License.
  -->
 <resources>
-  <dimen name="standard_padding">8dip</dimen>
-  <dimen name="half_padding">4dip</dimen>
-    <dimen name="tendp">10dip</dimen>
+  <dimen name="standard_padding">8dp</dimen>
+  <dimen name="half_padding">4dp</dimen>
+    <dimen name="tendp">10dp</dimen>
+    <dimen name="sixtydp">60dp</dimen>
 </resources>
