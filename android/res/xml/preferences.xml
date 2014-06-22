@@ -95,6 +95,10 @@
         android:key="preferences_orientation"
         android:defaultValue="true"
         android:title="@string/preferences_orientation_title"/>
+    <Preference
+        android:key="preferences_httpd"
+        android:title="Barcode API/HTTP Server"/>
+
   </PreferenceCategory>
   <PreferenceCategory android:title="@string/preferences_result_title">
     <EditTextPreference

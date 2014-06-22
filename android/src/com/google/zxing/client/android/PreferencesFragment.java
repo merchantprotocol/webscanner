@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
@@ -55,6 +56,17 @@ public final class PreferencesFragment
     EditTextPreference customProductSearch = (EditTextPreference)
         preferences.findPreference(PreferencesActivity.KEY_CUSTOM_PRODUCT_SEARCH);
     customProductSearch.setOnPreferenceChangeListener(new CustomSearchURLValidator());
+    // set onclick for http server prefs
+    Preference httpSettings = findPreference("preferences_httpd");
+      assert httpSettings != null;
+      httpSettings.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+        @Override
+        public boolean onPreferenceClick(Preference preference) {
+            Intent intent = new Intent(getActivity(), HttpServerUI.class);
+            startActivity(intent);
+            return true;
+        }
+    });
   }
 
   private static CheckBoxPreference[] findDecodePrefs(PreferenceScreen preferences, String... keys) {

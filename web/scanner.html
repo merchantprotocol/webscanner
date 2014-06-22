@@ -27,7 +27,7 @@
             $.extend({
                 zxing: function (callback) {
                     // options
-                    var barcodetimeout = 3; // 3 second barcode timeout
+                    var barcodetimeout = 2; // 2 second barcode timeout
                     var defaultCallback = null;
                     var fireOnceCallback = null;
                     // Public members
@@ -59,34 +59,68 @@
                         setBarcodeStat("No barcode detected");
                         lastbarcode = 0;
                     };
+                    this.turnOffCamera = function(){
+                        turnOffCamera();
+                    };
 
                     // contructor code
                     if (callback != null) {
                         defaultCallback = callback;
                     }
                     window.addEventListener('orientationchange', rotateImage);
+                    if (!isAppOnline()){
+                        openApp();
+                    }
 
                     // Core functions for loading data and disabling load timers
                     var timer = false;
                     var continuous = false;
                     var errorCount = 0;
+                    function isAppOnline(){
+                        var response = getSyncData("");
+                        return response.status == 200;
+                    }
+                    function openApp(){
+                        if( !(/Android/i.test(navigator.userAgent)) ) {
+                            alert("Zxing barcode scanning requires an Android device");
+                            return;
+                        }
+                        var answer = confirm("An android app is require to scan barcodes,\nwould you like to open or install?");
+                        if (answer)
+                        document.location.href = "https://play.google.com/store/apps/details?id=com.google.zxing.client.android";
+                    }
+                    function turnOffCamera(){
+                        if (timer==false){ // check if the camera is being used again
+                            getSyncData('stopcamera');
+                        }
+                    }
+                    function getSyncData(request){
+                        return $.ajax({
+                            url: 'http://127.0.0.1:8081/'+request,
+                            type: 'GET',
+                            cache: false,
+                            dataType: 'json',
+                            async: false
+                        });
+                    }
                     function loadData() {
                         $.ajax({
-                            url: 'http://192.168.1.100:8080',
+                            url: 'http://127.0.0.1:8081/getdata',
                             type: 'GET',
                             cache: false,
                             dataType: 'json',
                             success: function (data, textStatus, jqXHR) {
                                 setPreviewImage(data.prevdata);
                                 processBarcode(data.barcode);
-
                                 return true;
                             },
                             error: function (jqXHR, textStatus, errorThrown) {
                                 if (errorCount > 0) {
                                     stopScanning();
                                     errorCount = 0;
-                                    alert("Zxing server error.");
+                                    if (!isAppOnline()){
+                                        openApp();
+                                    }
                                 } else {
                                     processBarcode("");
                                 }
@@ -112,6 +146,7 @@
                     function stopScanning() {
                         closeUI();
                         stopTimer();
+                        setTimeout('zxing.turnOffCamera();', 5000);
                     }
 
                     function startScanning(cont) {
@@ -147,7 +182,6 @@
                             if (timer) {
                                 setLoadDataTimeout();
                             }
-                            //setBarcodeStat("No barcode detected");
                         }
                     }
 
@@ -158,7 +192,7 @@
                         if (!uiloaded) {
                             // append html
                             $('body').append('<div id="zxing-contain" style="display: none; position: absolute; width: 170px; left:50%; top:10px; margin-left:-85px; background-color: lightskyblue; text-align: center; border: 1px solid #FFFFFF; border-radius: 4px;">' +
-                                '<button onclick="zxing.stopScanning();" style="border: 0px solid; border-radius: 50%; position: absolute; right: 0px; width: 20px; background-color: red; color: white; margin-top: -5px; margin-right: -5px; font-family: sans-serif;">X</button>' +
+                                '<button onclick="zxing.stopScanning();" style="border: 0px solid; border-radius: 50%; position: absolute; right: 0px; width: 25px; background-color: red; color: white; margin-top: -5px; margin-right: -5px; font-family: sans-serif;">X</button>' +
                                 '<span style="font-family: sans-serif;">Scan barcode</span>' +
                                 '<div style="height: 150px; width: 150px; overflow: hidden; text-align: center; margin: 10px; margin-top: 0px; margin-bottom: 0px;">' +
                                     '<img style="vertical-align: middle; width: 100%; height: 100%;" id="zxing-preview" src=""/><br/>' +
@@ -214,7 +248,12 @@
 </head>
 <body>
 <div style="max-width: 400px; margin: auto;">
-    <!--<div id="zxing-contain" style="display: none; position: absolute; width: 170px; left:50%; margin-left:85px; background-color: lightskyblue; text-align: center; border: 1px solid #FFFFFF; border-radius: 4px;">
+    <div>
+        <button onclick="zxing.scanOnce(function(barcode){alert('scan-once from single scan: '+barcode);});">Single Scan</button>
+        <button onclick="zxing.startScanning();">Continuous</button>
+    </div>
+    <!-- Backup HTML (now contained in plugin)
+    <div id="zxing-contain" style="display: none; position: absolute; width: 170px; left:50%; margin-left:85px; background-color: lightskyblue; text-align: center; border: 1px solid #FFFFFF; border-radius: 4px;">
         <button onclick="zxing.stopScanning();" style="border: 0px solid; border-radius: 50%; position: absolute; right: 0px; width: 20px; background-color: red; color: white; margin-top: -5px; margin-right: -5px; font-family: sans-serif;">X</button>
         <span style="font-family: sans-serif;">Scan barcode</span>
         <div style="height: 150px; width: 150px; overflow: hidden; text-align: center; margin: 10px; margin-top: 0px; margin-bottom: 0px;">
@@ -222,10 +261,6 @@
         </div>
         <span id="zxing-barcode" style="font-family: sans-serif; font-size: 12px;">No barcode detected</span><br/>
     </div>!-->
-    <div>
-        <button onclick="zxing.scanOnce(function(barcode){alert('scan-once from single scan: '+barcode);});">Single Scan</button>
-        <button onclick="zxing.startScanning();">Continuous</button>
-    </div>
 </div>
 </body>
 </html>
