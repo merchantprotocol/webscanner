@@ -86,7 +86,7 @@ public class HttpServer extends Service {
     }
 
     private boolean startServer(){
-        htserver = new Server();
+        htserver = new Server(HttpServer.this);
         try {
             htserver.start();
             return true;
@@ -97,7 +97,6 @@ public class HttpServer extends Service {
     }
 
     private void stopServer(){
-
         htserver.stop();
     }
 
@@ -115,12 +114,12 @@ public class HttpServer extends Service {
         private byte[] curbitmap = new byte[0];
         private String curbarcode = "";
         private String lastbarcode = "0";
-        private int camwidth;
-        private int camheight;
         private boolean camon = false;
+        private Service parent;
 
-        public Server(){
-            super("0.0.0.0", 8081);
+        public Server(Service service){
+            super("127.0.0.1", 8081);
+            parent = service;
             cameraManager = new CameraManager(getApplication());
             reader = new MultiFormatReader();
             System.out.println("Server started on port 8081;");
@@ -129,8 +128,12 @@ public class HttpServer extends Service {
         @Override
         public void stop(){
             super.stop();
-            stopCamera();
+            if (camon) stopCamera();
             System.out.println("Server shutdown");
+        }
+
+        private void issueStopCommand(){
+            parent.stopSelf();
         }
 
         private boolean startCamera(){
@@ -139,6 +142,7 @@ public class HttpServer extends Service {
                 camera = cameraManager.getCamera();
                 camera.startPreview();
                 camera.autoFocus(focusCallback);
+                // TODO: torce assistance (flash light)
                 camon = true;
                 System.out.println("Cam activated!");
                 return true;
@@ -155,6 +159,7 @@ public class HttpServer extends Service {
             cameraManager.closeDriver();
             curbarcode = "";
             lastbarcode = "0";
+            curbitmap = new byte[0];
             System.out.println("Cam off!");
         }
 
@@ -248,7 +253,10 @@ public class HttpServer extends Service {
                     response = new Response(jsobject.toString());
                 }
                 if (session.getUri().equals("/stopcamera")){
-                    stopCamera();
+                    if (camon) stopCamera();
+                }
+                if (session.getUri().equals("/stopserver")){
+                    issueStopCommand();
                 }
             }
             // set response headers
