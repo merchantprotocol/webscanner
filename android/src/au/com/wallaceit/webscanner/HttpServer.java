@@ -9,11 +9,17 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.hardware.Camera;
+import android.hardware.SensorManager;
+import android.media.ExifInterface;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Base64;
+import android.view.OrientationEventListener;
 
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.MultiFormatReader;
@@ -116,14 +122,39 @@ public class HttpServer extends Service {
         private String lastbarcode = "0";
         private boolean camon = false;
         private Service parent;
+        OrientationEventListener orientationEventListener;
+        private int orientation = 1;
 
-        public Server(Service service){
+        public Server(Service service) {
             super("127.0.0.1", 8081);
             parent = service;
             cameraManager = new CameraManager(getApplication());
             reader = new MultiFormatReader();
             System.out.println("Server started on port 8081;");
+            // set orientation listener
+            /*orientationEventListener = new OrientationEventListener(HttpServer.this, SensorManager.SENSOR_DELAY_NORMAL) {
+                @Override
+                public void onOrientationChanged(int arg0) {
+                    // get closest orientation and set if changed
+                    int newori = getResources().getConfiguration().orientation;
+                    if (newori!=orientation){
+                        orientation = newori;
+                        setDisplayOrientation();
+                    }
+                }
+            };*/
+
         }
+
+        /*private void setDisplayOrientation()
+        {
+            if (camon) {
+                Camera.Parameters parameters = camera.getParameters();
+                parameters.set("orientation", (((orientation==0 || orientation==180) || orientation==1) ? "portrait" : "landscape"));
+                camera.setParameters(parameters);
+                System.out.println("Orientation set to: "+orientation);
+            }
+        }*/
 
         @Override
         public void stop(){
@@ -143,8 +174,13 @@ public class HttpServer extends Service {
                 camera = cameraManager.getCamera();
                 camera.startPreview();
                 camera.autoFocus(focusCallback);
-                // TODO: torce assistance (flash light) & orientation
+                // TODO: torce assistance (flash light)
                 camon = true;
+                // set initial rotation and start listener
+                /*setDisplayOrientation();
+                if (orientationEventListener.canDetectOrientation()){
+                    orientationEventListener.enable();
+                }*/
                 System.out.println("Cam activated!");
                 return true;
             } catch (IOException e) {
@@ -158,6 +194,7 @@ public class HttpServer extends Service {
             camera.stopPreview();
             camera.cancelAutoFocus();
             cameraManager.closeDriver();
+            //orientationEventListener.disable();
             curbarcode = "";
             lastbarcode = "0";
             curbitmap = new byte[0];
@@ -171,7 +208,7 @@ public class HttpServer extends Service {
                         camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
                             @Override
                             public void onPreviewFrame(byte[] data, Camera camera) {
-                                if (camon) onCameraFocus(data);
+                                if (camon) onCameraFocus(data, camera);
                             }
                         });
                     }
@@ -180,10 +217,21 @@ public class HttpServer extends Service {
             }
         };
 
-        private void onCameraFocus(byte[] data){
-            // try to decode
-            PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height);
+        private void onCameraFocus(byte[] data, Camera camera){
+            // set vars
+            int imgwidth = camera.getParameters().getPreviewSize().width;
+            int imgheight = camera.getParameters().getPreviewSize().height;
+            // rotate the image if portrait as 1d barcodes can't be read  at 90 degrees
+            int orientation = parent.getResources().getConfiguration().orientation;
+            if ((orientation==0 || orientation==180) || orientation==1) {
+                // Rotate the data for Portait Mode
+                data = rotateYUV420Degree90(data, imgwidth, imgheight);
+            }
+            // convert data
+            PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, imgwidth, imgheight);
             BinaryBitmap binbitmap = new BinaryBitmap(new HybridBinarizer(source));
+
+            // try to decode
             String barcode;
             try {
                 Result result = reader.decodeWithState(binbitmap);
@@ -199,6 +247,34 @@ public class HttpServer extends Service {
             }
             curbarcode = barcode;
             savePreviewFrame(source);
+        }
+
+        private byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight)
+        {
+            byte [] yuv = new byte[imageWidth*imageHeight*3/2];
+            // Rotate the Y luma
+            int i = 0;
+            for(int x = 0;x < imageWidth;x++)
+            {
+                for(int y = imageHeight-1;y >= 0;y--)
+                {
+                    yuv[i] = data[y*imageWidth+x];
+                    i++;
+                }
+            }
+            // Rotate the U and V color components
+            i = imageWidth*imageHeight*3/2-1;
+            for(int x = imageWidth-1;x > 0;x=x-2)
+            {
+                for(int y = 0;y < imageHeight/2;y++)
+                {
+                    yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+x];
+                    i--;
+                    yuv[i] = data[(imageWidth*imageHeight)+(y*imageWidth)+(x-1)];
+                    i--;
+                }
+            }
+            return yuv;
         }
 
         private void savePreviewFrame(PlanarYUVLuminanceSource source){
