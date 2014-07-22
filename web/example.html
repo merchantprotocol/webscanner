@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>wscan Web-scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style type="text/css">
+        .rotate {
+            margin-bottom: 60px;
+            behavior: url(-ms-transform.htc);
+            /* Firefox */
+            -moz-transform: rotate(90deg);
+            /* Safari and Chrome */
+            -webkit-transform: rotate(90deg);
+            /* Opera */
+            -o-transform: rotate(90deg);
+            /* IE9 */
+            -ms-transform: rotate(90deg);
+            /* IE6,IE7 */
+            filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+            /* IE8 */
+            -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=1);";
+        }
+    </style>
+    <script src='https://code.jquery.com/jquery-1.11.1.min.js'></script>
+    <script type="text/javascript">
+        $(function () {
+            $.wscan.init(function (barcode) {
+                alert("default-callback: "+barcode);
+            }, true);
+        });
+    </script>
+</head>
+<body>
+<div style="max-width: 400px; margin: auto;">
+    <div>
+        <button onclick="$.wscan.scanOnce(function(barcode){alert('scan-once from single scan: '+barcode);});">Single Scan</button>
+        <button onclick="$.wscan.startScanning();">Continuous</button>
+        <button onclick="$.wscan.setFireOnceCallback(function (barcode) {alert('Fire-once callback: '+barcode); });">Set fire once callback</button>
+    </div>
+</div>
+</body>
+</html>
