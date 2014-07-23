@@ -12,7 +12,10 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.Camera;
 import android.hardware.SensorManager;
 import android.media.ExifInterface;
@@ -131,30 +134,8 @@ public class HttpServer extends Service {
             cameraManager = new CameraManager(getApplication());
             reader = new MultiFormatReader();
             System.out.println("Server started on port 8081;");
-            // set orientation listener
-            /*orientationEventListener = new OrientationEventListener(HttpServer.this, SensorManager.SENSOR_DELAY_NORMAL) {
-                @Override
-                public void onOrientationChanged(int arg0) {
-                    // get closest orientation and set if changed
-                    int newori = getResources().getConfiguration().orientation;
-                    if (newori!=orientation){
-                        orientation = newori;
-                        setDisplayOrientation();
-                    }
-                }
-            };*/
 
         }
-
-        /*private void setDisplayOrientation()
-        {
-            if (camon) {
-                Camera.Parameters parameters = camera.getParameters();
-                parameters.set("orientation", (((orientation==0 || orientation==180) || orientation==1) ? "portrait" : "landscape"));
-                camera.setParameters(parameters);
-                System.out.println("Orientation set to: "+orientation);
-            }
-        }*/
 
         @Override
         public void stop(){
@@ -174,13 +155,8 @@ public class HttpServer extends Service {
                 camera = cameraManager.getCamera();
                 camera.startPreview();
                 camera.autoFocus(focusCallback);
-                // TODO: torce assistance (flash light)
+                cameraManager.setTorch(true);
                 camon = true;
-                // set initial rotation and start listener
-                /*setDisplayOrientation();
-                if (orientationEventListener.canDetectOrientation()){
-                    orientationEventListener.enable();
-                }*/
                 System.out.println("Cam activated!");
                 return true;
             } catch (IOException e) {
@@ -193,6 +169,7 @@ public class HttpServer extends Service {
             camon = false;
             camera.stopPreview();
             camera.cancelAutoFocus();
+            cameraManager.setTorch(false);
             cameraManager.closeDriver();
             //orientationEventListener.disable();
             curbarcode = "";
@@ -246,7 +223,7 @@ public class HttpServer extends Service {
                 reader.reset();
             }
             curbarcode = barcode;
-            savePreviewFrame(source);
+            //savePreviewFrame(source); we don't want to show any rotation on the client side
         }
 
         private byte[] rotateYUV420Degree90(byte[] data, int imageWidth, int imageHeight)
@@ -308,6 +285,7 @@ public class HttpServer extends Service {
                             public void onPreviewFrame(byte[] data, Camera camera) {
                                 // save bitmap thumb in jpeg
                                 if (camon) {
+                                    // set vars
                                     PlanarYUVLuminanceSource source = cameraManager.buildLuminanceSource(data, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height);
                                     savePreviewFrame(source);
                                 }
