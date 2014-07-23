@@ -47,7 +47,7 @@
         android:theme="@style/CaptureTheme"
         android:windowSoftInputMode="stateAlwaysHidden">
         <intent-filter>
-            <data android:scheme="https" android:host="play.google.com" android:pathPrefix="/store/apps/" android:path="details?id=au.com.wallaceit.webscanner" />
+            <data android:scheme="https" android:host="wallaceit.com.au" android:pathPrefix="/playstore/webscanner/" android:path="index.php" />
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
