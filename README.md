@@ -1,3 +1,8 @@
+#DEPRECIATED
+##This project is a proof of concept and is not actively developed or supported.
+
+The main reason is becuase https usage runs into mixed-content restrictions.
+
 Web scanner allows barcode scanning directly from any android web browser.
 
 Web developers can utilize a simple javascript API to include scanning functionality within their website, complete with a camera preview.
